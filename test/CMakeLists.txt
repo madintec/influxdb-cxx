@@ -1,7 +1,7 @@
 
 find_package(Catch2 REQUIRED)
 find_package(trompeloeil REQUIRED)
-
+find_package(Boost)
 
 add_library(TestMain STATIC TestMain.cxx)
 target_link_libraries(TestMain PUBLIC Catch2::Catch2 trompeloeil)
@@ -11,7 +11,7 @@ add_subdirectory("mock")
 
 function(add_unittest name)
     add_executable(${name} ${name}.cxx)
-    target_link_libraries(${name} PRIVATE TestMain InfluxDB)
+    target_link_libraries(${name} PRIVATE TestMain InfluxDB Boost::system)
     target_include_directories(${name}
         PRIVATE
             ${CMAKE_SOURCE_DIR}/src
@@ -30,7 +30,7 @@ add_unittest(InfluxDBTest)
 add_unittest(InfluxDBFactoryTest)
 
 add_unittest(HttpTest)
-target_link_libraries(HttpTest PRIVATE InfluxDB-Http CurlMock)
+target_link_libraries(HttpTest PRIVATE InfluxDB-Http CurlMock )
 
 add_unittest(NoBoostSupportTest)
 target_sources(NoBoostSupportTest PRIVATE ${PROJECT_SOURCE_DIR}/src/NoBoostSupport.cxx)
