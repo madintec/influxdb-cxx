@@ -1,5 +1,5 @@
 add_executable(InfluxDBST InfluxDBST.cxx)
-target_link_libraries(InfluxDBST PRIVATE InfluxDB InfluxDB-Http CURL::libcurl TestMain)
+target_link_libraries(InfluxDBST PRIVATE InfluxDB InfluxDB-Http CURL::libcurl Boost::system TestMain)
 target_include_directories(InfluxDBST PRIVATE ${PROJECT_SOURCE_DIR}/src)
 
 
