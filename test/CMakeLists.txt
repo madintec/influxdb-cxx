@@ -4,7 +4,7 @@ find_package(trompeloeil REQUIRED)
 
 
 add_library(TestMain STATIC TestMain.cxx)
-target_link_libraries(TestMain PUBLIC Catch2::Catch2 trompeloeil::trompeloeil)
+target_link_libraries(TestMain PUBLIC Catch2::Catch2 trompeloeil)
 
 add_subdirectory("mock")
 
