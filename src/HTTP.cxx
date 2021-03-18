@@ -1,6 +1,7 @@
 // MIT License
 //
 // Copyright (c) 2019 Adam Wegrzynek
+// Copyright (c) 2021 Nicola Foissac
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +25,7 @@
 /// \author Adam Wegrzynek <adam.wegrzynek@cern.ch>
 ///
 
+
 #include "HTTP.h"
 #include "InfluxDBException.h"
 
@@ -38,11 +40,13 @@ namespace influxdb::transports
             return size * nmemb;
         }
 
+        /*
         size_t noopWriteCallBack([[maybe_unused]] char* ptr, size_t size,
                                  size_t nmemb, [[maybe_unused]] void* userdata)
         {
             return size * nmemb;
         }
+         */
 
         void setConnectionOptions(CURL* handle)
         {
@@ -50,19 +54,7 @@ namespace influxdb::transports
             curl_easy_setopt(handle, CURLOPT_TIMEOUT, 10);
             curl_easy_setopt(handle, CURLOPT_TCP_KEEPIDLE, 120L);
             curl_easy_setopt(handle, CURLOPT_TCP_KEEPINTVL, 60L);
-            curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, noopWriteCallBack);
-        }
-
-        CURL* createReadHandle()
-        {
-            if (CURL* readHandle = curl_easy_init(); readHandle != nullptr)
-            {
-                setConnectionOptions(readHandle);
-                curl_easy_setopt(readHandle, CURLOPT_WRITEFUNCTION, WriteCallback);
-                return readHandle;
-            }
-
-            throw InfluxDBException{__func__, "Failed to initialize write handle"};
+            curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, WriteCallback);
         }
 
         CURL* createWriteHandle(const std::string& url)
@@ -77,93 +69,103 @@ namespace influxdb::transports
 
             throw InfluxDBException{__func__, "Failed to initialize write handle"};
         }
+
+        CURL * createPost() noexcept(false) {
+            if( CURL * post = curl_easy_init(); post != nullptr){
+                setConnectionOptions(post);
+                curl_easy_setopt(post,CURLOPT_POST, 1);
+                return post;
+            }
+            throw InfluxDBException{__func__,"Failed to initialize curl post context."};
+        }
+
+        CURL * createGet() noexcept(false) {
+            if( CURL * get = curl_easy_init(); get != nullptr){
+                setConnectionOptions(get);
+                return get;
+            }
+            throw InfluxDBException{__func__,"Failed to initialize curl get context."};
+        }
+
+        /*
+        curl_slist * createHeader(const std::vector<std::string> & options){
+            struct curl_slist * headers = nullptr;
+            for(auto & option: options){
+                headers = curl_slist_append(headers,option.c_str());
+            }
+            return headers;
+        }
+         */
     }
 
 HTTP::HTTP(const std::string &url)
 {
-  initCurl(url);
-  initCurlRead(url);
+  initCurl();
+  initHttpContext(url);
+
   obtainInfluxServiceUrl(url);
   obtainDatabaseName(url);
+
 }
 
 HTTP::~HTTP()
 {
-  curl_easy_cleanup(writeHandle);
-  curl_easy_cleanup(readHandle);
+  curl_easy_cleanup(postHandle);
+  curl_easy_cleanup(getHandle);
   curl_global_cleanup();
 }
 
-void HTTP::initCurl(const std::string &url)
+void HTTP::initHttpContext(const std::string & url)
+{
+
+   auto pos = url.find("?db=");
+
+   if(pos == std::string::npos){
+       throw InfluxDBException(__func__, "Database not specified");
+   }
+
+   mDatabaseName = url.substr(pos + 4);
+
+   mUrl = url.substr(0,pos);
+
+   if(mUrl.at(pos-1)!='/'){
+       mUrl.push_back('/');
+   }
+}
+
+void HTTP::initCurl()
 {
   if (const CURLcode globalInitResult = curl_global_init(CURL_GLOBAL_ALL); globalInitResult != CURLE_OK)
   {
     throw InfluxDBException(__func__, curl_easy_strerror(globalInitResult));
   }
-
-  std::string writeUrl = url;
-  auto position = writeUrl.find('?');
-  if (position == std::string::npos)
-  {
-    throw InfluxDBException(__func__, "Database not specified");
-  }
-  if (writeUrl.at(position - 1) != '/')
-  {
-    writeUrl.insert(position, "/write");
-  }
-  else
-  {
-    writeUrl.insert(position, "write");
-  }
-  writeHandle = createWriteHandle(writeUrl);
+    postHandle = createPost();
+    getHandle = createGet();
 }
 
-void HTTP::initCurlRead(const std::string &url)
-{
-  mReadUrl = url + "&q=";
-  const auto pos = mReadUrl.find('?');
-  std::string cmd{"query"};
-
-  if (mReadUrl[pos - 1] != '/')
-  {
-      cmd.insert(0, 1, '/');
-  }
-
-  mReadUrl.insert(pos, cmd);
-  readHandle = createReadHandle();
-}
 
 std::string HTTP::query(const std::string &query)
 {
-  long responseCode;
-  std::string buffer;
-  char* encodedQuery = curl_easy_escape(readHandle, query.c_str(), static_cast<int>(query.size()));
-  auto fullUrl = mReadUrl + std::string(encodedQuery);
-  curl_free(encodedQuery);
-  curl_easy_setopt(readHandle, CURLOPT_URL, fullUrl.c_str());
-  curl_easy_setopt(readHandle, CURLOPT_WRITEDATA, &buffer);
-  const CURLcode response = curl_easy_perform(readHandle);
-  curl_easy_getinfo(readHandle, CURLINFO_RESPONSE_CODE, &responseCode);
-  treatCurlResponse(response, responseCode);
-  return buffer;
+    auto[buffer,response, code] = this->get(query);
+    treatCurlResponse(response, code);
+    return buffer;
 }
 
 void HTTP::enableBasicAuth(const std::string &auth)
 {
-  curl_easy_setopt(writeHandle, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-  curl_easy_setopt(writeHandle, CURLOPT_USERPWD, auth.c_str());
-  curl_easy_setopt(readHandle, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-  curl_easy_setopt(readHandle, CURLOPT_USERPWD, auth.c_str());
+  curl_easy_setopt(getHandle, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+  curl_easy_setopt(getHandle, CURLOPT_USERPWD, auth.c_str());
+  curl_easy_setopt(postHandle, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+  curl_easy_setopt(postHandle, CURLOPT_USERPWD, auth.c_str());
 }
 
 void HTTP::send(std::string &&lineprotocol)
 {
-  long responseCode;
-  curl_easy_setopt(writeHandle, CURLOPT_POSTFIELDS, lineprotocol.c_str());
-  curl_easy_setopt(writeHandle, CURLOPT_POSTFIELDSIZE, static_cast<long>(lineprotocol.length()));
-  const CURLcode response = curl_easy_perform(writeHandle);
-  curl_easy_getinfo(writeHandle, CURLINFO_RESPONSE_CODE, &responseCode);
-  treatCurlResponse(response, responseCode);
+  auto fullUrl = mUrl+"write?db="+mDatabaseName;
+  curl_easy_setopt(postHandle,CURLOPT_URL,fullUrl.c_str());
+  auto[buffer, response, code] = this->post(lineprotocol);
+  treatCurlResponse(response, code);
+  buffer.clear();
 }
 
 void HTTP::treatCurlResponse(const CURLcode &response, long responseCode) const
@@ -219,6 +221,34 @@ std::string HTTP::influxDbServiceUrl() const
 {
   return mInfluxDbServiceUrl;
 }
+
+std::tuple<std::string, const CURLcode, long> HTTP::get(const std::string& args)
+{
+  long responseCode;
+  std::string buffer;
+  char* encodedArgs = curl_easy_escape(getHandle, args.c_str(), static_cast<int>(args.size()));
+  auto fullUrl = mUrl+"query?db="+mDatabaseName+"&q="+std::string(encodedArgs);
+  curl_free(encodedArgs);
+  curl_easy_setopt(getHandle, CURLOPT_URL, fullUrl.c_str());
+  curl_easy_setopt(getHandle, CURLOPT_WRITEDATA, &buffer);
+  const CURLcode response = curl_easy_perform(getHandle);
+  curl_easy_getinfo(getHandle, CURLINFO_RESPONSE_CODE, &responseCode);
+  return {buffer,response,responseCode};
+}
+
+std::tuple<std::string, const CURLcode, long> HTTP::post(const std::string& args)
+{
+  long responseCode;
+  std::string buffer;
+  curl_easy_setopt(postHandle, CURLOPT_POSTFIELDS, args.c_str());
+  curl_easy_setopt(postHandle, CURLOPT_POSTFIELDSIZE, static_cast<long>(args.length()));
+  curl_easy_setopt(postHandle, CURLOPT_WRITEDATA, &buffer);
+  const CURLcode response = curl_easy_perform(postHandle);
+  curl_easy_getinfo(postHandle, CURLINFO_RESPONSE_CODE, &responseCode);
+  return {buffer,response,responseCode};
+}
+
+
 
 void HTTP::createDatabase()
 {

@@ -1,6 +1,7 @@
 // MIT License
 //
 // Copyright (c) 2019 Adam Wegrzynek
+// Copyright (c) 2021 Nicola Foissac
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -75,24 +76,26 @@ private:
   /// Obtain database name from the url passed
   void obtainDatabaseName(const std::string &url);
 
-  /// Initializes CURL for writing and common options
-  /// \throw InfluxDBException	if database (?db=) not specified
-  void initCurl(const std::string &url);
+  void initHttpContext(const std::string & url);
 
-  /// Initializes CURL for reading
-  void initCurlRead(const std::string &url);
+
+  /// \throw InfluxDBException	if database (?db=) not specified
+  void initCurl();
+
 
   /// treats responses of CURL requests
   void treatCurlResponse(const CURLcode &response, long responseCode) const;
 
-  /// CURL pointer configured for writing points
-  CURL *writeHandle;
 
-  /// CURL pointer configured for querying
-  CURL *readHandle;
+  std::tuple<std::string, const CURLcode, long> post(const std::string & args);
+  std::tuple<std::string, const CURLcode, long> get(const std::string & args);
 
-  /// InfluxDB read URL
-  std::string mReadUrl;
+
+  CURL * postHandle;
+  CURL * getHandle;
+
+  /// InfluxDB base url
+  std::string mUrl;
 
   /// InfluxDB service URL
   std::string mInfluxDbServiceUrl;
