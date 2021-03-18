@@ -146,7 +146,9 @@ void HTTP::initCurl()
 
 std::string HTTP::query(const std::string &query)
 {
-    auto[buffer,response, code] = this->get(query);
+    auto fullUrl = mUrl+"api/v2/query";
+    curl_easy_setopt(postHandle,CURLOPT_URL,fullUrl.c_str());
+    auto[buffer,response, code] = this->post(query);
     treatCurlResponse(response, code);
     return buffer;
 }
