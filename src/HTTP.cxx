@@ -87,15 +87,15 @@ namespace influxdb::transports
             throw InfluxDBException{__func__,"Failed to initialize curl get context."};
         }
 
-        /*
-        curl_slist * createHeader(const std::vector<std::string> & options){
+
+        struct curl_slist * createHeader(const std::vector<std::string> & options){
             struct curl_slist * headers = nullptr;
             for(auto & option: options){
                 headers = curl_slist_append(headers,option.c_str());
             }
             return headers;
         }
-         */
+
     }
 
 HTTP::HTTP(const std::string &url)
@@ -146,10 +146,13 @@ void HTTP::initCurl()
 
 std::string HTTP::query(const std::string &query)
 {
+    auto * header = createHeader({"Accept: application/csv","Content-type: application/vnd.flux"});
+    curl_easy_setopt(postHandle,CURLOPT_HTTPHEADER,header);
     auto fullUrl = mUrl+"api/v2/query";
     curl_easy_setopt(postHandle,CURLOPT_URL,fullUrl.c_str());
     auto[buffer,response, code] = this->post(query);
     treatCurlResponse(response, code);
+    curl_slist_free_all(header);
     return buffer;
 }
 

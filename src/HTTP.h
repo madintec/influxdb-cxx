@@ -32,6 +32,7 @@
 #include <curl/curl.h>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace influxdb::transports
 {
