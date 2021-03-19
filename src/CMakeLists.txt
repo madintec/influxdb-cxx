@@ -7,7 +7,7 @@ set(INTERNAL_INCLUDE_DIRS
 add_library(InfluxDB-Http OBJECT HTTP.cxx)
 target_include_directories(InfluxDB-Http PRIVATE ${INTERNAL_INCLUDE_DIRS})
 target_include_directories(InfluxDB-Http SYSTEM PUBLIC $<TARGET_PROPERTY:CURL::libcurl,INTERFACE_INCLUDE_DIRECTORIES>)
-
+target_link_libraries(InfluxDB-Http PRIVATE CURL::libcurl)
 
 add_library(InfluxDB-BoostSupport OBJECT
     $<$<NOT:$<BOOL:${Boost_FOUND}>>:NoBoostSupport.cxx>
