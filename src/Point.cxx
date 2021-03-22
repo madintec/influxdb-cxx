@@ -42,6 +42,11 @@ Point::Point(const std::string& measurement) : mValue({}),
 {
 }
 
+Point::Point() : mValue({}),
+  mMeasurement(), mTimestamp(Point::getCurrentTimestamp()), mTags({}), mFields({})
+{
+}
+
 Point&& Point::addField(std::string_view name, const std::variant<int, long long int, std::string, double>& value)
 {
   if (name.empty())
@@ -101,6 +106,11 @@ std::string Point::toLineProtocol() const
 std::string Point::getName() const
 {
   return mMeasurement;
+}
+
+void Point::setName(const std::string& measurement )
+{
+  this->mMeasurement = measurement;
 }
 
 std::chrono::time_point<std::chrono::system_clock> Point::getTimestamp() const

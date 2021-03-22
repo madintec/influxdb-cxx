@@ -45,6 +45,9 @@ class INFLUXDB_EXPORT Point
     /// Constructs point based on measurement name
     explicit Point(const std::string& measurement);
 
+    /// Constructs point based on measurement name
+    explicit Point();
+
     /// Adds a tags
     Point&& addTag(std::string_view key, std::string_view value);
 
@@ -65,6 +68,8 @@ class INFLUXDB_EXPORT Point
     /// Name getter
     std::string getName() const;
 
+    /// Name setter
+    void setName(const std::string& measurement );
     /// Timestamp getter
     std::chrono::time_point<std::chrono::system_clock> getTimestamp() const;
 
