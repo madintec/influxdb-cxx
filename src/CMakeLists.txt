@@ -12,6 +12,8 @@ target_link_libraries(InfluxDB-Http PRIVATE CURL::libcurl)
 add_library(InfluxDB-BoostSupport OBJECT
     $<$<NOT:$<BOOL:${Boost_FOUND}>>:NoBoostSupport.cxx>
     $<$<BOOL:${Boost_FOUND}>:BoostSupport.cxx>
+    $<$<BOOL:${Boost_FOUND}>:parser/CSV.cxx>
+    $<$<BOOL:${Boost_FOUND}>:data/InfluxCSV.cxx>
     $<$<BOOL:${Boost_FOUND}>:UDP.cxx>
     $<$<BOOL:${Boost_FOUND}>:UnixSocket.cxx>
     )
