@@ -25,6 +25,37 @@
 #include <boost/lexical_cast.hpp>
 #include <chrono>
 #include <iomanip>
+#include <iostream>
+
+struct time {
+    static std::chrono::time_point<std::chrono::system_clock> getTime(const std::string& time)
+    {
+        std::stringstream timeString;
+        std::tm tm = {};
+        timeString << time;
+        timeString >> std::get_time(&tm, "%Y-%m-%dT%H:%M:%SZ");
+        auto isNano = time.find('.');
+        std::chrono::nanoseconds nanoseconds(0);
+        if (isNano != std::string::npos)
+        {
+            auto nano = time.substr(isNano + 1, time.size() - 1);
+            long n = std::stol(nano);
+            switch (nano.size()){
+                case 1:
+                    nanoseconds = std::chrono::milliseconds(n*100);
+                    break;
+                case 2:
+                    nanoseconds = std::chrono::milliseconds(n*10);
+                    break;
+                case 3:
+                    nanoseconds = std::chrono::milliseconds(n);
+                    break;
+                    default:break;
+            }
+        }
+        return std::chrono::system_clock::from_time_t(std::mktime(&tm))+nanoseconds;
+    }
+};
 
 namespace influxdb::data
 {
@@ -101,11 +132,7 @@ namespace influxdb::data
                                 break;
                             case 3:
                             {
-                                std::stringstream timeString;
-                                std::tm tm = {};
-                                timeString << row[d.second.second];
-                                timeString >> std::get_time(&tm, "%Y-%m-%dT%H:%M:%SZ");
-                                time = std::chrono::system_clock::from_time_t(std::mktime(&tm));
+                                time = time::getTime(row[d.second.second]);
                             }
                             break;
                             default:
