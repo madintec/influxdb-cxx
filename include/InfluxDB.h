@@ -63,6 +63,12 @@ class INFLUXDB_EXPORT InfluxDB
     /// Queries InfluxDB database
     std::vector<Point> query(const std::string& query);
 
+    /// Set token for api V2
+    void setToken( const std::string & token);
+
+    /// Set organisation for api V2
+    void setOrganisation( const std::string & org);
+
     /// Create InfluxDB database if does not exists
     void createDatabaseIfNotExists();
 

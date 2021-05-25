@@ -63,6 +63,10 @@ public:
   /// \param auth <username>:<password>
   void enableBasicAuth(const std::string &auth);
 
+  void setToken(const std::string & token) override;
+
+  void setOrg(const std::string & org) override;
+
   /// Get the database name managed by this transport
   [[nodiscard]] std::string databaseName() const;
 
@@ -103,6 +107,12 @@ private:
 
   /// Database name used
   std::string mDatabaseName;
+
+  /// database token
+  std::string mToken;
+
+  /// database organisation
+  std::string mOrg;
 };
 
 } // namespace influxdb

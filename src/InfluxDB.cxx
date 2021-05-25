@@ -145,6 +145,29 @@ std::vector<Point> InfluxDB::query(const std::string &query)
     return internal::queryImpl(mTransport.get(), query);
 }
 
+void InfluxDB::setToken(const std::string & token){
+    try
+    {
+        mTransport->setToken(token);
+    }
+    catch (const std::runtime_error & runtimeError)
+    {
+        throw runtimeError;
+    }
+}
+
+void InfluxDB::setOrganisation(const std::string& org)
+{
+    try
+    {
+        mTransport->setOrg(org);
+    }
+    catch (const std::runtime_error & runtimeError)
+    {
+        throw runtimeError;
+    }
+}
+
 void InfluxDB::createDatabaseIfNotExists()
 {
   try

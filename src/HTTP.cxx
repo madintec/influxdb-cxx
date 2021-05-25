@@ -26,6 +26,7 @@
 ///
 
 
+#include <iostream>
 #include "HTTP.h"
 #include "InfluxDBException.h"
 
@@ -146,13 +147,15 @@ void HTTP::initCurl()
 
 std::string HTTP::query(const std::string &query)
 {
-    auto * header = createHeader({"Accept: application/csv","Content-type: application/vnd.flux"});
+    auto * header = createHeader({"Authorization: Token "+mToken,"Accept: application/csv","Content-type: application/vnd.flux"});
     curl_easy_setopt(postHandle,CURLOPT_HTTPHEADER,header);
-    auto fullUrl = mUrl+"api/v2/query";
+    char* encodedArgs = curl_easy_escape(postHandle, mOrg.c_str(), static_cast<int>(mOrg.size()));
+    auto fullUrl = mUrl+"api/v2/query?org="+std::string(encodedArgs);
     curl_easy_setopt(postHandle,CURLOPT_URL,fullUrl.c_str());
     auto[buffer,response, code] = this->post(query);
-    treatCurlResponse(response, code);
+    curl_free(encodedArgs);
     curl_slist_free_all(header);
+    treatCurlResponse(response, code);
     return buffer;
 }
 
@@ -160,8 +163,10 @@ void HTTP::enableBasicAuth(const std::string &auth)
 {
   curl_easy_setopt(getHandle, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
   curl_easy_setopt(getHandle, CURLOPT_USERPWD, auth.c_str());
+  /*
   curl_easy_setopt(postHandle, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
   curl_easy_setopt(postHandle, CURLOPT_USERPWD, auth.c_str());
+   */
 }
 
 void HTTP::send(std::string &&lineprotocol)
@@ -270,6 +275,16 @@ void HTTP::createDatabase()
   curl_easy_getinfo(createHandle, CURLINFO_RESPONSE_CODE, &responseCode);
   treatCurlResponse(response,responseCode);
   curl_easy_cleanup(createHandle);
+}
+
+void HTTP::setToken(const std::string& token)
+{
+    this->mToken = token;
+}
+
+void HTTP::setOrg(const std::string& org)
+{
+    this->mOrg = org;
 }
 
 } // namespace influxdb

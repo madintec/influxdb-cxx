@@ -44,6 +44,14 @@ class INFLUXDB_EXPORT Transport
     /// Sends string blob
     virtual void send(std::string&& message) = 0;
 
+    virtual void setToken([[maybe_unused]] const std::string & token){
+      throw InfluxDBException{"Transport", "Token are not supported by selected transport"};
+    }
+
+    virtual void setOrg([[maybe_unused]] const std::string & org){
+        throw InfluxDBException{"Transport", "Organisation are not supported by selected transport"};
+    }
+
     /// Sends request
     virtual std::string query([[maybe_unused]] const std::string& query) {
       throw InfluxDBException{"Transport", "Queries are not supported by the selected transport"};
