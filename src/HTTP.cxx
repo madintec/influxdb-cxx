@@ -27,6 +27,7 @@
 
 
 #include <iostream>
+#include <sstream>
 #include "HTTP.h"
 #include "InfluxDBException.h"
 
@@ -147,15 +148,15 @@ void HTTP::initCurl()
 
 std::string HTTP::query(const std::string &query)
 {
-    auto * header = createHeader({"Authorization: Token "+mToken,"Accept: application/csv","Content-type: application/vnd.flux"});
+    auto * header = createHeader({"Authorization: Token "+mToken,"Accept: application/csv","Content-type: application/json"});
     curl_easy_setopt(postHandle,CURLOPT_HTTPHEADER,header);
     char* encodedArgs = curl_easy_escape(postHandle, mOrg.c_str(), static_cast<int>(mOrg.size()));
     auto fullUrl = mUrl+"api/v2/query?org="+std::string(encodedArgs);
     curl_easy_setopt(postHandle,CURLOPT_URL,fullUrl.c_str());
     auto[buffer,response, code] = this->post(query);
+    treatCurlResponse(response, code);
     curl_free(encodedArgs);
     curl_slist_free_all(header);
-    treatCurlResponse(response, code);
     return buffer;
 }
 
@@ -250,8 +251,21 @@ std::tuple<std::string, const CURLcode, long> HTTP::post(const std::string& args
 {
   long responseCode;
   std::string buffer;
-  curl_easy_setopt(postHandle, CURLOPT_POSTFIELDS, args.c_str());
-  curl_easy_setopt(postHandle, CURLOPT_POSTFIELDSIZE, static_cast<long>(args.length()));
+  std::stringstream stringstream;
+  stringstream << "{ \"query\":\""  << args << "\", \"type\":\"flux\", \"dialect\" : {\n"
+                          "\n"
+                          "    \"header\": true,\n"
+                          "    \"annotations\": \n"
+                          "\n"
+                          "    [\n"
+                          "        \"datatype\"\n"
+                          "    ],\n"
+                          "    \"dateTimeFormat\": \"RFC3339\"\n"
+                          "\n"
+                          "} }";
+  auto str = stringstream.str();
+  curl_easy_setopt(postHandle, CURLOPT_POSTFIELDS, str.c_str());
+  curl_easy_setopt(postHandle, CURLOPT_POSTFIELDSIZE,  static_cast<int>(str.size()));
   curl_easy_setopt(postHandle, CURLOPT_WRITEDATA, &buffer);
   const CURLcode response = curl_easy_perform(postHandle);
   curl_easy_getinfo(postHandle, CURLINFO_RESPONSE_CODE, &responseCode);
